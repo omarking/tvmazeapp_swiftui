@@ -1,0 +1,117 @@
+//
+//  EpisodeView.swift
+//  tv_maze (iOS)
+//
+//  Created by Pedro Omar Quimi Reyes on 01/08/22.
+//
+
+import SwiftUI
+
+struct EpisodeView: View {
+    
+    @ObservedObject var apiStore = APIStore()
+    @State var selectedSeason: Int
+    var seasonArray: [Season]
+    var seriesID: Int
+    
+    init(seriesID: Int, seasonArray: [Season], selectedSeason: Int) {
+        self.seriesID = seriesID
+        self.seasonArray = seasonArray
+        _selectedSeason = State(initialValue: selectedSeason)
+        UITableView.appearance().backgroundColor = .clear
+        UITableViewCell.appearance().backgroundColor = .clear
+    }
+    
+    var body: some View {
+        
+        ZStack {
+            ImageView(image: self.seasonArray.filter({$0.number == self.selectedSeason}).first?.image?.original ?? "")
+                .blur(radius: 30)
+                .scaledToFill()
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack {
+                ScrollView(.horizontal, showsIndicators: false){
+                    HStack() {
+                        ForEach(seasonArray) { season in
+                            Button(action: {
+                                self.selectedSeason = season.number ?? 0
+                            }) {
+                                Text(String(season.number ?? 0))
+                                    .font(.system(size: 35))
+                                    .frame(width: 70, height: 70, alignment: .center)
+                                    .background(season.number == self.selectedSeason ? Color.yellow : Color.gray)
+                                    .cornerRadius(70/2)
+                                    .foregroundColor(Color.white)
+                            }
+                        }
+                    }
+                }.padding(20)
+                
+                
+                List{
+                    ForEach(apiStore.episodes.filter({$0.airedSeason == self.selectedSeason})){ episode in
+                        EpisodeCell(episode: episode)
+                    }
+                }
+            }
+            .onAppear {
+                self.apiStore.fetchEpisodes(with: self.seriesID)
+
+            }
+        }
+    .navigationBarTitle(Text("Season: \(self.selectedSeason)"))
+    }
+}
+
+
+struct EpisodeCell: View {
+    var episode: Episode
+    @State var showPopup = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(episode.episodeNumber ?? 0). \(episode.episodeName ?? "")")
+                .font(.title)
+            ImageView(image: episode.image?.original ?? "")
+            HStack {
+                Text("Run time:")
+                    .bold()
+                Text("\(episode.runtime ?? 0) hrs")
+            }
+            HStack {
+                Text("Aired date:")
+                    .bold()
+                Text("\(episode.airdate ?? "")")
+            }
+            HStack(alignment: .top) {
+                Text("Summary:")
+                    .bold()
+                Text(removeTags(from: episode.summary ?? ""))
+                    .lineLimit(10)
+            }
+        }
+        .foregroundColor(Color.white)
+        .padding(10)
+        .background(Color.gray.opacity(0.8))
+        .cornerRadius(6)
+        .onTapGesture { self.showPopup = true }
+        .sheet(isPresented: self.$showPopup) {
+            SingleEpisodeView(episode: self.episode)
+        }
+    }
+}
+
+
+/*struct EpisodeView_Previews: PreviewProvider {
+    static var previews: some View {
+        let episodes = SampleAPIResult.getDummyEpisodes()
+        let seasons = SampleAPIResult.getDummySeasons()
+        var view = EpisodeView(seriesID: 1, seasonArray: seasons, selectedSeason: 3)
+        let episodeStore = APIStore()
+        episodeStore.episodes = episodes
+        view.apiStore = episodeStore
+        return view
+    }
+}*/
